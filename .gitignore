@@ -30,3 +30,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+bin/
+.DS_Store
+coverage.out
+dist/
+>>>>>>> c238808 (initial commit)

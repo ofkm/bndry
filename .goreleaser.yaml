@@ -1,0 +1,98 @@
+# GoReleaser configuration for bndry
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Run tests and tidy dependencies before building
+    - go test ./...
+    - go mod tidy
+
+builds:
+  - id: bndry
+    main: ./cmd/bndry
+    binary: bndry
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: bndry-archive
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  abbrev: 7
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+brews:
+  - name: bndry
+    repository:
+      owner: ofkm
+      name: homebrew-tap
+      branch: main
+    directory: Formula
+    homepage: "https://github.com/ofkm/bndry"
+    description: "Friendly CLI wrapper for HashiCorp Boundary focused on SSH workflows"
+    license: "MIT"
+    test: |
+      system "#{bin}/bndry --help"
+    install: |
+      bin.install "bndry"
+
+release:
+  github:
+    owner: ofkm
+    name: bndry
+  draft: false
+  prerelease: auto
+  mode: append
+  header: |
+    ## bndry {{ .Tag }}
+
+    See the [CHANGELOG](https://github.com/ofkm/bndry/blob/main/README.md) for details.
+
+# Metadata
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
