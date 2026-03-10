@@ -16,5 +16,8 @@ fmt:
 tidy:
 	go mod tidy
 
+fix:
+	go fix ./...
+
 run:
 	go run ./cmd/bndry

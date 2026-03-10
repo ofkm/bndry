@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kmendell/bdry-cli/internal/app"
+	"github.com/ofkm/bndry/internal/app"
 )
 
 func main() {

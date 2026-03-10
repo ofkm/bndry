@@ -76,7 +76,7 @@ brews:
     directory: Formula
     homepage: 'https://github.com/ofkm/bndry'
     description: 'Friendly CLI wrapper for HashiCorp Boundary focused on SSH workflows'
-    license: 'MIT'
+    license: 'Apache License 2.0'
     test: |
       system "#{bin}/bndry --help"
     install: |

@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	"github.com/kmendell/bdry-cli/internal/ui"
+	"github.com/ofkm/bndry/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -112,10 +112,10 @@ func (a *App) newAddCommand() *cobra.Command {
 
 func (a *App) newSSHCommand() *cobra.Command {
 	sshCmd := &cobra.Command{
-		Use:     "ssh [target-name]",
-		Short:   "Connect to a target by friendly name",
+		Use:     "ssh [user@]target",
+		Short:   "Connect to a target via SSH",
 		Args:    cobra.MaximumNArgs(1),
-		Example: "bndry ssh boron\nbndry ssh list",
+		Example: "  bndry ssh kmendell@webserver-01\n  bndry ssh webserver-01\n  bndry ssh list",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetName := ""
 			if len(args) == 1 {
@@ -153,27 +153,31 @@ func (a *App) newSSHCommand() *cobra.Command {
 }
 
 func (a *App) newTargetsCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "targets",
 		Short:   "List targets in a project scope",
+		Hidden:  true,
 		Args:    cobra.NoArgs,
 		Example: "bndry targets",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runTargets(cmd.Context())
 		},
 	}
+	return cmd
 }
 
 func (a *App) newScopesCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "scopes",
 		Short:   "List scopes recursively",
+		Hidden:  true,
 		Args:    cobra.NoArgs,
 		Example: "bndry scopes",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runScopes(cmd.Context())
 		},
 	}
+	return cmd
 }
 
 func (a *App) newConfigCommand() *cobra.Command {

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/kmendell/bdry-cli/internal/boundary"
-	"github.com/kmendell/bdry-cli/internal/config"
-	"github.com/kmendell/bdry-cli/internal/ui"
+	"github.com/ofkm/bndry/internal/boundary"
+	"github.com/ofkm/bndry/internal/config"
+	"github.com/ofkm/bndry/internal/ui"
 )
 
 // App is the main entrypoint for the bndry CLI.
@@ -275,7 +275,7 @@ func (a *App) runSetupSSH(ctx context.Context) error {
 		return err
 	}
 	if connectNow {
-		return client.ConnectSSH(ctx, bundle.Target.ID)
+		return client.ConnectSSH(ctx, bundle.Target.ID, "")
 	}
 
 	return nil
@@ -362,7 +362,7 @@ func (a *App) runAdd(ctx context.Context, ipAddress string, name string, port in
 	if shouldConnect {
 		fmt.Fprintln(a.stdout)
 		a.printInfo("Connecting...")
-		return client.ConnectSSH(ctx, bundle.Target.ID)
+		return client.ConnectSSH(ctx, bundle.Target.ID, "")
 	}
 
 	return nil
@@ -381,13 +381,21 @@ func (a *App) runSSH(ctx context.Context, targetName string) error {
 
 	client := boundary.NewClient(cfg.BoundaryAddr, cfg.AuthToken)
 	if strings.TrimSpace(targetName) != "" {
-		target, scope, err := a.resolveTargetByName(ctx, client, targetName, cfg.DefaultProjectScopeID)
+		// Parse user@target format (like Teleport's tsh)
+		var username string
+		actualTargetName := targetName
+		if idx := strings.Index(targetName, "@"); idx != -1 {
+			username = targetName[:idx]
+			actualTargetName = targetName[idx+1:]
+		}
+
+		target, scope, err := a.resolveTargetByName(ctx, client, actualTargetName, cfg.DefaultProjectScopeID)
 		if err != nil {
 			return err
 		}
 
 		a.printInfo(fmt.Sprintf("Connecting to %s (%s) in %s...", target.Name, target.ID, displayScope(scope)))
-		if err := client.ConnectSSH(ctx, target.ID); err != nil {
+		if err := client.ConnectSSH(ctx, target.ID, username); err != nil {
 			return a.wrapSSHConnectError(err, target.Name)
 		}
 		return nil
@@ -433,7 +441,7 @@ func (a *App) runSSH(ctx context.Context, targetName string) error {
 	}
 
 	a.printInfo(fmt.Sprintf("Connecting to %s (%s)...", target.Name, target.ID))
-	if err := client.ConnectSSH(ctx, target.ID); err != nil {
+	if err := client.ConnectSSH(ctx, target.ID, ""); err != nil {
 		return a.wrapSSHConnectError(err, target.Name)
 	}
 	return nil

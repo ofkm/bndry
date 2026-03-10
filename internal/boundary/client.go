@@ -588,7 +588,7 @@ func (c *Client) AddPrincipalToRole(ctx context.Context, roleID string, principa
 }
 
 // ConnectSSH starts an interactive SSH session using a target ID.
-func (c *Client) ConnectSSH(ctx context.Context, targetID string) error {
+func (c *Client) ConnectSSH(ctx context.Context, targetID, username string) error {
 	if strings.TrimSpace(targetID) == "" {
 		return errors.New("target ID is required")
 	}
@@ -647,7 +647,7 @@ func (c *Client) ConnectSSH(ctx context.Context, targetID string) error {
 		return errors.New("Boundary client proxy did not report a listener address")
 	}
 
-	sshArgs, cleanup, err := buildSSHArgs(authz, listenerAddr)
+	sshArgs, cleanup, err := buildSSHArgs(authz, listenerAddr, username)
 	if err != nil {
 		cancel()
 		proxyErr := <-proxyErrCh
@@ -812,7 +812,7 @@ func targetDefaultPort(item *apitargets.Target) (int, error) {
 	}
 }
 
-func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr string) ([]string, func() error, error) {
+func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr, overrideUsername string) ([]string, func() error, error) {
 	if authz == nil {
 		return nil, func() error { return nil }, errors.New("session authorization is nil")
 	}
@@ -830,24 +830,41 @@ func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr string) (
 		return nil, cleanup, fmt.Errorf("parse Boundary session credentials: %w", err)
 	}
 
-	username := ""
-	if len(credentials.SshPrivateKey) > 0 {
-		keyCredential := credentials.SshPrivateKey[0]
-		username = keyCredential.Username
+	username := overrideUsername
+	if username == "" {
+		// Fall back to credentials from Boundary
+		if len(credentials.SshPrivateKey) > 0 {
+			keyCredential := credentials.SshPrivateKey[0]
+			username = keyCredential.Username
 
-		keyFile, err := writeTemporaryPrivateKey(keyCredential.PrivateKey)
-		if err != nil {
-			return nil, cleanup, err
+			keyFile, err := writeTemporaryPrivateKey(keyCredential.PrivateKey)
+			if err != nil {
+				return nil, cleanup, err
+			}
+
+			cleanup = func() error {
+				return os.Remove(keyFile)
+			}
+			args = append(args, "-i", keyFile, "-o", "IdentitiesOnly=yes")
 		}
 
-		cleanup = func() error {
-			return os.Remove(keyFile)
+		if username == "" && len(credentials.UsernamePassword) > 0 {
+			username = credentials.UsernamePassword[0].Username
 		}
-		args = append(args, "-i", keyFile, "-o", "IdentitiesOnly=yes")
-	}
+	} else {
+		// User specified a custom username, but we may still have a private key to use
+		if len(credentials.SshPrivateKey) > 0 {
+			keyCredential := credentials.SshPrivateKey[0]
+			keyFile, err := writeTemporaryPrivateKey(keyCredential.PrivateKey)
+			if err != nil {
+				return nil, cleanup, err
+			}
 
-	if username == "" && len(credentials.UsernamePassword) > 0 {
-		username = credentials.UsernamePassword[0].Username
+			cleanup = func() error {
+				return os.Remove(keyFile)
+			}
+			args = append(args, "-i", keyFile, "-o", "IdentitiesOnly=yes")
+		}
 	}
 
 	if username != "" {

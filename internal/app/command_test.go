@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kmendell/bdry-cli/internal/config"
+	"github.com/ofkm/bndry/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -60,7 +60,7 @@ func TestRunHelpRendersStyledCommandHelp(t *testing.T) {
 	checks := []string{
 		"Friendly Boundary CLI for SSH-first workflows",
 		"bndry setup",
-		"bndry ssh [target-name]",
+		"bndry ssh [user@]target",
 		"bndry config",
 	}
 
