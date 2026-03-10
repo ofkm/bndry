@@ -47,7 +47,7 @@ checksum:
   algorithm: sha256
 
 changelog:
-  use: github
+  use: git
   sort: asc
   abbrev: 7
   filters:
@@ -66,21 +66,21 @@ changelog:
     - title: Others
       order: 999
 
-brews:
+homebrew_casks:
   - name: bndry
+    ids:
+      - bndry-archive
     repository:
       owner: ofkm
       name: homebrew-tap
       branch: main
       token: '{{ .Env.TAP_GITHUB_TOKEN }}'
-    directory: Formula
+    directory: Casks
+    binaries:
+      - bndry
+    commit_msg_template: 'Brew cask update for {{ .ProjectName }} version {{ .Tag }}'
     homepage: 'https://github.com/ofkm/bndry'
     description: 'Friendly CLI wrapper for HashiCorp Boundary focused on SSH workflows'
-    license: 'Apache License 2.0'
-    test: |
-      system "#{bin}/bndry --help"
-    install: |
-      bin.install "bndry"
 
 release:
   github:
