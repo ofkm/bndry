@@ -173,3 +173,30 @@ func TestPickOIDCAuthMethodID(t *testing.T) {
 		})
 	}
 }
+
+func TestSSHHostKeyAlias(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		targetID string
+		alias    string
+		want     string
+	}{
+		{name: "empty", targetID: "", alias: "", want: ""},
+		{name: "name and target id", targetID: "ttcp_uJFU5W1C9P", alias: "cobalt-ssh", want: "bndry-cobalt-ssh-ttcp_uJFU5W1C9P"},
+		{name: "trims whitespace", targetID: "  ttcp_123  ", alias: "  cobalt-ssh  ", want: "bndry-cobalt-ssh-ttcp_123"},
+		{name: "replaces unsafe chars", targetID: "ttcp/123", alias: "cobalt ssh@prod", want: "bndry-cobalt-ssh-prod-ttcp-123"},
+		{name: "falls back to target id", targetID: "ttcp_999", alias: "@@@", want: "bndry-ttcp_999"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := sshHostKeyAlias(tt.targetID, tt.alias); got != tt.want {
+				t.Fatalf("sshHostKeyAlias(%q, %q) = %q, want %q", tt.targetID, tt.alias, got, tt.want)
+			}
+		})
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 const oidcPollInterval = 1500 * time.Millisecond
 
 var localhostAddr = netip.MustParseAddr("127.0.0.1")
+
+var sshHostAliasSanitizer = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 
 // OIDCAuthStart contains the values needed to complete an OIDC login.
 type OIDCAuthStart struct {
@@ -588,7 +591,7 @@ func (c *Client) AddPrincipalToRole(ctx context.Context, roleID string, principa
 }
 
 // ConnectSSH starts an interactive SSH session using a target ID.
-func (c *Client) ConnectSSH(ctx context.Context, targetID, username string) error {
+func (c *Client) ConnectSSH(ctx context.Context, targetID, username, hostAlias string) error {
 	if strings.TrimSpace(targetID) == "" {
 		return errors.New("target ID is required")
 	}
@@ -644,10 +647,10 @@ func (c *Client) ConnectSSH(ctx context.Context, targetID, username string) erro
 		if proxyErr != nil {
 			return proxyErr
 		}
-		return errors.New("Boundary client proxy did not report a listener address")
+		return errors.New("boundary client proxy did not report a listener address")
 	}
 
-	sshArgs, cleanup, err := buildSSHArgs(authz, listenerAddr, username)
+	sshArgs, cleanup, err := buildSSHArgs(authz, listenerAddr, username, sshHostKeyAlias(targetID, hostAlias))
 	if err != nil {
 		cancel()
 		proxyErr := <-proxyErrCh
@@ -656,23 +659,12 @@ func (c *Client) ConnectSSH(ctx context.Context, targetID, username string) erro
 		}
 		return err
 	}
-	defer cleanup()
-
 	sshErr := runSSHCommand(ctx, sshArgs)
 	cancel()
 	proxyErr := <-proxyErrCh
+	cleanupErr := cleanup()
 
-	if sshErr != nil && proxyErr != nil {
-		return errors.Join(sshErr, proxyErr)
-	}
-	if sshErr != nil {
-		return sshErr
-	}
-	if proxyErr != nil {
-		return proxyErr
-	}
-
-	return nil
+	return errors.Join(sshErr, proxyErr, cleanupErr)
 }
 
 // CreateSSHBundle performs the full host -> host set -> target -> role workflow.
@@ -812,7 +804,7 @@ func targetDefaultPort(item *apitargets.Target) (int, error) {
 	}
 }
 
-func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr, overrideUsername string) ([]string, func() error, error) {
+func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr, overrideUsername, hostKeyAlias string) ([]string, func() error, error) {
 	if authz == nil {
 		return nil, func() error { return nil }, errors.New("session authorization is nil")
 	}
@@ -824,6 +816,9 @@ func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr, override
 
 	args := []string{"-p", port}
 	cleanup := func() error { return nil }
+	if strings.TrimSpace(hostKeyAlias) != "" {
+		args = append(args, "-o", "HostKeyAlias="+hostKeyAlias)
+	}
 
 	credentials, err := apiproxy.ParseCredentials(authz.Credentials)
 	if err != nil {
@@ -875,6 +870,30 @@ func buildSSHArgs(authz *apitargets.SessionAuthorization, listenerAddr, override
 	return args, cleanup, nil
 }
 
+func sshHostKeyAlias(targetID, hostAlias string) string {
+	parts := make([]string, 0, 3)
+	for _, part := range []string{hostAlias, targetID} {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+
+		sanitized := sshHostAliasSanitizer.ReplaceAllString(trimmed, "-")
+		sanitized = strings.Trim(sanitized, "-.")
+		if sanitized == "" {
+			continue
+		}
+
+		parts = append(parts, sanitized)
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "bndry-" + strings.Join(parts, "-")
+}
+
 func writeTemporaryPrivateKey(privateKey string) (string, error) {
 	if strings.TrimSpace(privateKey) == "" {
 		return "", errors.New("private key is empty")
@@ -884,13 +903,17 @@ func writeTemporaryPrivateKey(privateKey string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create temporary private key file: %w", err)
 	}
-	defer file.Close()
 
 	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
 		return "", fmt.Errorf("set private key permissions: %w", err)
 	}
 	if _, err := file.WriteString(privateKey); err != nil {
+		_ = file.Close()
 		return "", fmt.Errorf("write private key: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return "", fmt.Errorf("close private key file: %w", err)
 	}
 
 	return file.Name(), nil

@@ -26,7 +26,7 @@ func (a *App) NewRootCommand() *cobra.Command {
 	rootCmd.SetOut(a.stdout)
 	rootCmd.SetErr(a.stderr)
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		fmt.Fprintln(cmd.OutOrStdout(), ui.RenderCommandHelp(cmd))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), ui.RenderCommandHelp(cmd))
 	})
 
 	rootCmd.AddCommand(

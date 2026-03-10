@@ -16,6 +16,7 @@ import (
 	"github.com/ofkm/bndry/internal/boundary"
 	"github.com/ofkm/bndry/internal/config"
 	"github.com/ofkm/bndry/internal/ui"
+	"golang.org/x/sync/errgroup"
 )
 
 // App is the main entrypoint for the bndry CLI.
@@ -86,11 +87,15 @@ func (a *App) runLogin(ctx context.Context) error {
 	}
 
 	a.printInfo("Opening returned authentication URL in your browser...")
-	fmt.Fprintln(a.stdout, start.AuthURL)
+	if err := a.writeLine(start.AuthURL); err != nil {
+		return err
+	}
 	if err := openBrowser(start.AuthURL); err != nil {
 		a.printWarning(fmt.Sprintf("Unable to open authentication URL in browser: %v", err))
 		a.printInfo("Please copy and paste this link into a browser manually:")
-		fmt.Fprintln(a.stdout, start.AuthURL)
+		if err := a.writeLine(start.AuthURL); err != nil {
+			return err
+		}
 	}
 
 	token, err := client.WaitForOIDCToken(ctx, start.AuthMethodID, start.TokenID)
@@ -113,6 +118,11 @@ func (a *App) runSetupSSH(ctx context.Context) error {
 	cfg, changed, err := a.ensureBaseConfig()
 	if err != nil {
 		return err
+	}
+	if changed {
+		if err := a.store.Save(cfg); err != nil {
+			return err
+		}
 	}
 
 	client := boundary.NewClient(cfg.BoundaryAddr, cfg.AuthToken)
@@ -247,7 +257,6 @@ func (a *App) runSetupSSH(ctx context.Context) error {
 
 	if useAsDefault {
 		cfg.DefaultProjectScopeID = scope.ID
-		changed = true
 	}
 	cfg.LastHostCatalogID = bundle.Catalog.ID
 	changed = true
@@ -259,15 +268,11 @@ func (a *App) runSetupSSH(ctx context.Context) error {
 	}
 
 	a.printSuccess("Boundary resources created")
-	fmt.Fprintf(a.stdout, "  Catalog:  %s (%s)\n", bundle.Catalog.Name, bundle.Catalog.ID)
-	fmt.Fprintf(a.stdout, "  Host:     %s (%s -> %s)\n", bundle.Host.Name, bundle.Host.ID, bundle.Host.Address)
-	fmt.Fprintf(a.stdout, "  Host set: %s (%s)\n", bundle.HostSet.Name, bundle.HostSet.ID)
-	fmt.Fprintf(a.stdout, "  Target:   %s (%s)\n", bundle.Target.Name, bundle.Target.ID)
-	if bundle.Role != nil {
-		fmt.Fprintf(a.stdout, "  Role:     %s (%s)\n", bundle.Role.Name, bundle.Role.ID)
-		if strings.TrimSpace(principalID) == "" {
-			a.printWarning("Role created without a principal; add one later with Boundary if needed.")
-		}
+	if err := a.writeString(renderCreatedBundle(bundle)); err != nil {
+		return err
+	}
+	if bundle.Role != nil && strings.TrimSpace(principalID) == "" {
+		a.printWarning("Role created without a principal; add one later with Boundary if needed.")
 	}
 
 	connectNow, err := ui.RunConfirm("Connect to the new target now?", cfg.DefaultConnectAfterCreate)
@@ -275,7 +280,7 @@ func (a *App) runSetupSSH(ctx context.Context) error {
 		return err
 	}
 	if connectNow {
-		return client.ConnectSSH(ctx, bundle.Target.ID, "")
+		return client.ConnectSSH(ctx, bundle.Target.ID, "", bundle.Target.Name)
 	}
 
 	return nil
@@ -285,6 +290,11 @@ func (a *App) runAdd(ctx context.Context, ipAddress string, name string, port in
 	cfg, changed, err := a.ensureBaseConfig()
 	if err != nil {
 		return err
+	}
+	if changed {
+		if err := a.store.Save(cfg); err != nil {
+			return err
+		}
 	}
 
 	client := boundary.NewClient(cfg.BoundaryAddr, cfg.AuthToken)
@@ -341,28 +351,23 @@ func (a *App) runAdd(ctx context.Context, ipAddress string, name string, port in
 	}
 
 	cfg.LastHostCatalogID = bundle.Catalog.ID
-	changed = true
-	if changed {
-		if err := a.store.Save(cfg); err != nil {
-			return err
-		}
+	if err := a.store.Save(cfg); err != nil {
+		return err
 	}
 
 	a.printSuccess("Target created")
-	fmt.Fprintf(a.stdout, "  Catalog:  %s (%s)\n", bundle.Catalog.Name, bundle.Catalog.ID)
-	fmt.Fprintf(a.stdout, "  Host:     %s (%s -> %s)\n", bundle.Host.Name, bundle.Host.ID, bundle.Host.Address)
-	fmt.Fprintf(a.stdout, "  Host set: %s (%s)\n", bundle.HostSet.Name, bundle.HostSet.ID)
-	fmt.Fprintf(a.stdout, "  Target:   %s (%s)\n", bundle.Target.Name, bundle.Target.ID)
-	if bundle.Role != nil {
-		fmt.Fprintf(a.stdout, "  Role:     %s (%s)\n", bundle.Role.Name, bundle.Role.ID)
+	if err := a.writeString(renderCreatedBundle(bundle)); err != nil {
+		return err
 	}
 
 	// Connect automatically unless --no-connect is set
 	shouldConnect := !noConnect && cfg.DefaultConnectAfterCreate
 	if shouldConnect {
-		fmt.Fprintln(a.stdout)
+		if err := a.writeLine(); err != nil {
+			return err
+		}
 		a.printInfo("Connecting...")
-		return client.ConnectSSH(ctx, bundle.Target.ID, "")
+		return client.ConnectSSH(ctx, bundle.Target.ID, "", bundle.Target.Name)
 	}
 
 	return nil
@@ -395,7 +400,7 @@ func (a *App) runSSH(ctx context.Context, targetName string) error {
 		}
 
 		a.printInfo(fmt.Sprintf("Connecting to %s (%s) in %s...", target.Name, target.ID, displayScope(scope)))
-		if err := client.ConnectSSH(ctx, target.ID, username); err != nil {
+		if err := client.ConnectSSH(ctx, target.ID, username, target.Name); err != nil {
 			return a.wrapSSHConnectError(err, target.Name)
 		}
 		return nil
@@ -441,7 +446,7 @@ func (a *App) runSSH(ctx context.Context, targetName string) error {
 	}
 
 	a.printInfo(fmt.Sprintf("Connecting to %s (%s)...", target.Name, target.ID))
-	if err := client.ConnectSSH(ctx, target.ID, ""); err != nil {
+	if err := client.ConnectSSH(ctx, target.ID, "", target.Name); err != nil {
 		return a.wrapSSHConnectError(err, target.Name)
 	}
 	return nil
@@ -473,9 +478,13 @@ func (a *App) runSSHList(ctx context.Context) error {
 	}
 
 	tw := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tPORT\tTARGET ID\tSCOPE\tSCOPE ID")
+	if _, err := fmt.Fprintln(tw, "NAME\tPORT\tTARGET ID\tSCOPE\tSCOPE ID"); err != nil {
+		return err
+	}
 	for _, match := range matches {
-		fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\n", match.target.Name, match.target.DefaultPort, match.target.ID, displayScope(match.scope), match.scope.ID)
+		if _, err := fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\n", match.target.Name, match.target.DefaultPort, match.target.ID, displayScope(match.scope), match.scope.ID); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -515,47 +524,13 @@ func (a *App) runSSHInspect(ctx context.Context, targetName string) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintf(a.stdout, "Target:   %s (%s)\n", inspection.Target.Name, inspection.Target.ID)
-	fmt.Fprintf(a.stdout, "Scope:    %s (%s)\n", displayScope(scope), scope.ID)
-	fmt.Fprintf(a.stdout, "Type:     %s\n", inspection.Target.Type)
-	fmt.Fprintf(a.stdout, "Port:     %d\n", inspection.Target.DefaultPort)
-	if strings.TrimSpace(inspection.Target.Address) != "" {
-		fmt.Fprintf(a.stdout, "Address:  %s\n", inspection.Target.Address)
-	}
-	if len(inspection.Target.HostSourceIDs) > 0 {
-		fmt.Fprintf(a.stdout, "Sources:  %s\n", strings.Join(inspection.Target.HostSourceIDs, ", "))
-	} else {
-		fmt.Fprintln(a.stdout, "Sources:  none")
+	if err := a.writeString(renderTargetInspection(inspection, scope)); err != nil {
+		return err
 	}
 
 	if strings.TrimSpace(inspection.Target.Address) == "" && len(inspection.HostSources) == 0 {
 		a.printWarning("This target has no direct address and no host sources, so Boundary cannot connect to it yet.")
 		return nil
-	}
-
-	for idx, source := range inspection.HostSources {
-		fmt.Fprintln(a.stdout)
-		fmt.Fprintf(a.stdout, "Host source %d\n", idx+1)
-		fmt.Fprintf(a.stdout, "  Host set:    %s (%s)\n", displayValue(source.HostSet.Name, source.HostSet.ID), source.HostSet.ID)
-		fmt.Fprintf(a.stdout, "  Catalog:     %s (%s)\n", displayValue(source.HostCatalog.Name, source.HostCatalog.ID), source.HostCatalog.ID)
-		if len(source.Hosts) == 0 {
-			fmt.Fprintln(a.stdout, "  Hosts:       none")
-			continue
-		}
-
-		for _, host := range source.Hosts {
-			fmt.Fprintf(a.stdout, "  Host:        %s (%s)\n", displayValue(host.Name, host.ID), host.ID)
-			if strings.TrimSpace(host.Address) != "" {
-				fmt.Fprintf(a.stdout, "    Address:   %s\n", host.Address)
-			}
-			if len(host.DNSNames) > 0 {
-				fmt.Fprintf(a.stdout, "    DNS:       %s\n", strings.Join(host.DNSNames, ", "))
-			}
-			if len(host.IPAddresses) > 0 {
-				fmt.Fprintf(a.stdout, "    IPs:       %s\n", strings.Join(host.IPAddresses, ", "))
-			}
-		}
 	}
 
 	return nil
@@ -660,26 +635,135 @@ func (a *App) listProjectTargets(ctx context.Context, client *boundary.Client) (
 		return strings.ToLower(displayScope(projects[i])) < strings.ToLower(displayScope(projects[j]))
 	})
 
-	matches := make([]targetMatch, 0)
-	for _, scope := range projects {
-		targets, err := client.ListTargets(ctx, scope.ID)
-		if err != nil {
-			return nil, fmt.Errorf("list targets for scope %s: %w", scope.ID, err)
-		}
-
-		sort.Slice(targets, func(i, j int) bool {
-			if strings.EqualFold(targets[i].Name, targets[j].Name) {
-				return targets[i].ID < targets[j].ID
+	targetsByScope := make([][]boundary.Target, len(projects))
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(8)
+	for idx, scope := range projects {
+		idx, scope := idx, scope
+		g.Go(func() error {
+			targets, err := client.ListTargets(gctx, scope.ID)
+			if err != nil {
+				return fmt.Errorf("list targets for scope %s: %w", scope.ID, err)
 			}
-			return strings.ToLower(targets[i].Name) < strings.ToLower(targets[j].Name)
-		})
 
-		for _, target := range targets {
+			sort.Slice(targets, func(i, j int) bool {
+				if strings.EqualFold(targets[i].Name, targets[j].Name) {
+					return targets[i].ID < targets[j].ID
+				}
+				return strings.ToLower(targets[i].Name) < strings.ToLower(targets[j].Name)
+			})
+
+			targetsByScope[idx] = targets
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	totalTargets := 0
+	for _, targets := range targetsByScope {
+		totalTargets += len(targets)
+	}
+	matches := make([]targetMatch, 0, totalTargets)
+	for idx, scope := range projects {
+		for _, target := range targetsByScope[idx] {
 			matches = append(matches, targetMatch{scope: scope, target: target})
 		}
 	}
 
 	return matches, nil
+}
+
+func renderCreatedBundle(bundle *boundary.CreatedSSHBundle) string {
+	var builder strings.Builder
+	builder.WriteString("  Catalog:  ")
+	builder.WriteString(bundle.Catalog.Name)
+	builder.WriteString(" (")
+	builder.WriteString(bundle.Catalog.ID)
+	builder.WriteString(")\n")
+	builder.WriteString("  Host:     ")
+	builder.WriteString(bundle.Host.Name)
+	builder.WriteString(" (")
+	builder.WriteString(bundle.Host.ID)
+	builder.WriteString(" -> ")
+	builder.WriteString(bundle.Host.Address)
+	builder.WriteString(")\n")
+	builder.WriteString("  Host set: ")
+	builder.WriteString(bundle.HostSet.Name)
+	builder.WriteString(" (")
+	builder.WriteString(bundle.HostSet.ID)
+	builder.WriteString(")\n")
+	builder.WriteString("  Target:   ")
+	builder.WriteString(bundle.Target.Name)
+	builder.WriteString(" (")
+	builder.WriteString(bundle.Target.ID)
+	builder.WriteString(")\n")
+	if bundle.Role != nil {
+		builder.WriteString("  Role:     ")
+		builder.WriteString(bundle.Role.Name)
+		builder.WriteString(" (")
+		builder.WriteString(bundle.Role.ID)
+		builder.WriteString(")\n")
+	}
+
+	return builder.String()
+}
+
+func renderTargetInspection(inspection *boundary.TargetInspection, scope boundary.Scope) string {
+	var builder strings.Builder
+	appendLinef(&builder, "Target:   %s (%s)", inspection.Target.Name, inspection.Target.ID)
+	appendLinef(&builder, "Scope:    %s (%s)", displayScope(scope), scope.ID)
+	appendLinef(&builder, "Type:     %s", inspection.Target.Type)
+	appendLinef(&builder, "Port:     %d", inspection.Target.DefaultPort)
+	if strings.TrimSpace(inspection.Target.Address) != "" {
+		appendLinef(&builder, "Address:  %s", inspection.Target.Address)
+	}
+	if len(inspection.Target.HostSourceIDs) > 0 {
+		appendLinef(&builder, "Sources:  %s", strings.Join(inspection.Target.HostSourceIDs, ", "))
+	} else {
+		appendLinef(&builder, "Sources:  none")
+	}
+
+	for idx, source := range inspection.HostSources {
+		builder.WriteByte('\n')
+		appendLinef(&builder, "Host source %d", idx+1)
+		appendLinef(&builder, "  Host set:    %s (%s)", displayValue(source.HostSet.Name, source.HostSet.ID), source.HostSet.ID)
+		appendLinef(&builder, "  Catalog:     %s (%s)", displayValue(source.HostCatalog.Name, source.HostCatalog.ID), source.HostCatalog.ID)
+		if len(source.Hosts) == 0 {
+			appendLinef(&builder, "  Hosts:       none")
+			continue
+		}
+
+		for _, host := range source.Hosts {
+			appendLinef(&builder, "  Host:        %s (%s)", displayValue(host.Name, host.ID), host.ID)
+			if strings.TrimSpace(host.Address) != "" {
+				appendLinef(&builder, "    Address:   %s", host.Address)
+			}
+			if len(host.DNSNames) > 0 {
+				appendLinef(&builder, "    DNS:       %s", strings.Join(host.DNSNames, ", "))
+			}
+			if len(host.IPAddresses) > 0 {
+				appendLinef(&builder, "    IPs:       %s", strings.Join(host.IPAddresses, ", "))
+			}
+		}
+	}
+
+	return builder.String()
+}
+
+func appendLinef(builder *strings.Builder, format string, args ...any) {
+	_, _ = fmt.Fprintf(builder, format+"\n", args...)
+}
+
+func (a *App) writeLine(parts ...any) error {
+	_, err := fmt.Fprintln(a.stdout, parts...)
+	return err
+}
+
+func (a *App) writeString(value string) error {
+	_, err := io.WriteString(a.stdout, value)
+	return err
 }
 
 func (a *App) runTargets(ctx context.Context) error {
@@ -705,9 +789,13 @@ func (a *App) runTargets(ctx context.Context) error {
 	}
 
 	tw := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tPORT\tID")
+	if _, err := fmt.Fprintln(tw, "NAME\tPORT\tID"); err != nil {
+		return err
+	}
 	for _, target := range targets {
-		fmt.Fprintf(tw, "%s\t%d\t%s\n", target.Name, target.DefaultPort, target.ID)
+		if _, err := fmt.Fprintf(tw, "%s\t%d\t%s\n", target.Name, target.DefaultPort, target.ID); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -734,9 +822,13 @@ func (a *App) runScopes(ctx context.Context) error {
 	})
 
 	tw := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tTYPE\tID\tPARENT")
+	if _, err := fmt.Fprintln(tw, "NAME\tTYPE\tID\tPARENT"); err != nil {
+		return err
+	}
 	for _, scope := range scopes {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", displayScope(scope), scope.Type, scope.ID, scope.ParentScopeID)
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", displayScope(scope), scope.Type, scope.ID, scope.ParentScopeID); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -760,8 +852,7 @@ func (a *App) runConfigShow() error {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	fmt.Fprintln(a.stdout, string(data))
-	return nil
+	return a.writeLine(string(data))
 }
 
 func (a *App) runConfigInit() error {
@@ -777,8 +868,7 @@ func (a *App) runConfigInit() error {
 }
 
 func (a *App) runConfigPath() error {
-	fmt.Fprintln(a.stdout, a.store.Path())
-	return nil
+	return a.writeLine(a.store.Path())
 }
 
 func (a *App) ensureBaseConfig() (config.Config, bool, error) {
@@ -951,13 +1041,13 @@ func (a *App) wrapSSHConnectError(err error, targetName string) error {
 }
 
 func (a *App) printInfo(message string) {
-	fmt.Fprintln(a.stdout, ui.RenderInfo(message))
+	_, _ = fmt.Fprintln(a.stdout, ui.RenderInfo(message))
 }
 
 func (a *App) printSuccess(message string) {
-	fmt.Fprintln(a.stdout, ui.RenderSuccess(message))
+	_, _ = fmt.Fprintln(a.stdout, ui.RenderSuccess(message))
 }
 
 func (a *App) printWarning(message string) {
-	fmt.Fprintln(a.stdout, ui.RenderWarning(message))
+	_, _ = fmt.Fprintln(a.stdout, ui.RenderWarning(message))
 }
