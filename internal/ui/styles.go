@@ -8,22 +8,30 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+const (
+	boundaryRed       = "#D14B57"
+	boundaryRedDark   = "#A63A46"
+	boundaryGray      = "#A1A1AA"
+	boundaryGrayDark  = "#52525B"
+	boundaryGrayLight = "#E4E4E7"
+)
+
 var (
-	titleStyle             = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	sectionStyle           = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("69")).MarginBottom(1)
-	selectedStyle          = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
-	promptStyle            = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("81"))
-	mutedStyle             = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	errorStyle             = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("203"))
-	successStyle           = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
-	warningStyle           = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
-	codeStyle              = lipgloss.NewStyle().Foreground(lipgloss.Color("141"))
-	valueStyle             = lipgloss.NewStyle().Bold(true)
-	helpContainerStyle     = lipgloss.NewStyle().Padding(1, 2)
+	titleStyle             = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryRed))
+	sectionStyle           = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryRedDark)).MarginBottom(1)
+	selectedStyle          = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryRed))
+	promptStyle            = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryRed))
+	mutedStyle             = lipgloss.NewStyle().Foreground(lipgloss.Color(boundaryGray))
+	errorStyle             = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryRedDark))
+	successStyle           = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryGrayLight))
+	warningStyle           = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryRed))
+	codeStyle              = lipgloss.NewStyle().Foreground(lipgloss.Color(boundaryGrayLight))
+	valueStyle             = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(boundaryGrayLight))
+	helpContainerStyle     = lipgloss.NewStyle().Padding(1, 2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(boundaryGrayDark))
 	helpSectionBodyStyle   = lipgloss.NewStyle().MarginLeft(2)
 	helpCommandNameStyle   = codeStyle.Bold(true)
 	helpCommandDetailStyle = mutedStyle.MarginLeft(2)
-	promptFrameStyle       = lipgloss.NewStyle().Padding(1, 2)
+	promptFrameStyle       = lipgloss.NewStyle().Padding(1, 2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(boundaryGrayDark))
 	promptHintStyle        = mutedStyle.MarginTop(1)
 	optionDetailStyle      = mutedStyle.MarginLeft(4)
 	inputRowStyle          = lipgloss.NewStyle().MarginLeft(1)

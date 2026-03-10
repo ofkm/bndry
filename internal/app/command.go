@@ -11,7 +11,7 @@ import (
 func (a *App) NewRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "bndry",
-		Short:         "Friendly Boundary CLI for SSH-first workflows",
+		Short:         "Simplified Boundary CLI",
 		Long:          "bndry wraps the HashiCorp Boundary CLI with simpler commands, interactive prompts, and friendlier output.",
 		SilenceErrors: true,
 		SilenceUsage:  true,

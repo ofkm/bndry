@@ -22,6 +22,12 @@ bndry ssh kmendell@webserver-01
 brew install ofkm/tap/bndry
 ```
 
+### Go Install
+
+```bash
+go install github.com/ofkm/bndry/cmd/bndry@latest
+```
+
 ### From Source
 
 ```bash
