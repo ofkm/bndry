@@ -78,6 +78,12 @@ homebrew_casks:
     directory: Casks
     binaries:
       - bndry
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/bndry"]
+          end
     commit_msg_template: 'Brew cask update for {{ .ProjectName }} version {{ .Tag }}'
     homepage: 'https://github.com/ofkm/bndry'
     description: 'Friendly CLI wrapper for HashiCorp Boundary focused on SSH workflows'
