@@ -51,6 +51,7 @@ func TestRunHelpRendersStyledCommandHelp(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	app := newBufferedTestApp(t, stdout, stderr)
+	root := app.NewRootCommand()
 
 	if err := app.Run(context.Background(), []string{"help"}); err != nil {
 		t.Fatalf("Run(help) error = %v", err)
@@ -58,7 +59,7 @@ func TestRunHelpRendersStyledCommandHelp(t *testing.T) {
 
 	output := stripANSI(stdout.String())
 	checks := []string{
-		"Friendly Boundary CLI for SSH-first workflows",
+		root.Short,
 		"bndry setup",
 		"bndry ssh [user@]target",
 		"bndry config",
