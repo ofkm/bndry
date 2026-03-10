@@ -559,13 +559,17 @@ func (c *Client) AddGrantToRole(ctx context.Context, roleID string, targetID str
 		return err
 	}
 
-	grant := fmt.Sprintf("id=%s;actions=authorize-session", targetID)
+	grant := authorizeSessionGrant(targetID)
 	_, err = apiroles.NewClient(apiClient).AddGrants(ctx, roleID, 0, []string{grant}, apiroles.WithAutomaticVersioning(true))
 	if err != nil {
 		return fmt.Errorf("add grant to role: %w", err)
 	}
 
 	return nil
+}
+
+func authorizeSessionGrant(targetID string) string {
+	return fmt.Sprintf("ids=%s;actions=authorize-session", targetID)
 }
 
 // AddPrincipalToRole adds a user or managed group principal to a role.

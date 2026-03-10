@@ -200,3 +200,14 @@ func TestSSHHostKeyAlias(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthorizeSessionGrant(t *testing.T) {
+	t.Parallel()
+
+	const targetID = "ttcp_pasAlBrMWb"
+	want := "ids=ttcp_pasAlBrMWb;actions=authorize-session"
+
+	if got := authorizeSessionGrant(targetID); got != want {
+		t.Fatalf("authorizeSessionGrant(%q) = %q, want %q", targetID, got, want)
+	}
+}
