@@ -185,15 +185,18 @@ That's it! You're now SSHed into your target via Boundary.
 Authenticate with your Boundary controller using OIDC.
 
 **Usage:**
+
 ```bash
 bndry login
 ```
 
 **Interactive prompts:**
+
 1. Boundary controller address (e.g., `https://boundary.example.com`)
 2. OIDC auth method ID (optional—leave blank to use the server's default OIDC provider)
 
 **What it does:**
+
 - Saves the controller URL to your config file
 - Initiates an OIDC authentication flow
 - Opens your browser to complete the login
@@ -201,15 +204,17 @@ bndry login
 - Saves the token to your config file
 
 **Example:**
+
 ```bash
 $ bndry login
 → Boundary controller address: https://boundary.mycompany.com
-→ OIDC auth method ID (leave blank to use server default): 
+→ OIDC auth method ID (leave blank to use server default):
 → Opening browser for OIDC authentication...
 ✓ Authentication successful
 ```
 
 **Notes:**
+
 - The auth token is saved in plaintext in your config file (`~/.config/bndry/config.yaml`)
 - Token expiration depends on your Boundary controller settings
 - Re-run `bndry login` when your token expires
@@ -221,11 +226,13 @@ $ bndry login
 Quickly add a new SSH target with automatic resource creation.
 
 **Usage:**
+
 ```bash
 bndry add [ip-address] [flags]
 ```
 
 **Flags:**
+
 - `-n, --name` — Target name (auto-generated from IP if omitted)
 - `-p, --port` — Target port (defaults to `default_target_port` from config, or 22)
 - `-g, --group` — Host set name (defaults to `default_host_set_name` from config)
@@ -233,6 +240,7 @@ bndry add [ip-address] [flags]
 - `--no-connect` — Skip automatic connection after creation
 
 **What it does automatically:**
+
 1. Creates or reuses a static host catalog
 2. Creates a static host with the provided IP address
 3. Creates or reuses a host set
@@ -262,6 +270,7 @@ bndry add 10.0.0.50 -n jumpbox --no-connect
 ```
 
 **Notes:**
+
 - If `default_project_scope_id` is not set in your config, you'll be prompted to select a project scope
 - Host catalog and host set are reused across multiple `add` commands if they have the same name
 - Auto-generated names follow the pattern `host-X-X-X-X` (IP octets separated by hyphens)
@@ -273,6 +282,7 @@ bndry add 10.0.0.50 -n jumpbox --no-connect
 Interactive guided workflow to create a complete SSH target from scratch.
 
 **Usage:**
+
 ```bash
 bndry setup
 # or
@@ -280,12 +290,14 @@ bndry setup ssh
 ```
 
 **What it does:**
+
 - Walks you through creating all required Boundary resources step by step
 - Allows full customization of all names and settings
 - Creates: host catalog → host → host set → target
 - Optionally creates a role grant for access control
 
 **Interactive prompts:**
+
 1. Project scope selection
 2. Host catalog name
 3. Host name
@@ -299,11 +311,12 @@ bndry setup ssh
 11. Whether to connect immediately after creation
 
 **Example flow:**
+
 ```bash
 $ bndry setup
 
   Choose the project scope
-  
+
   › My Production Env (p_abc123)
     Development (p_def456)
     Staging (p_ghi789)
@@ -329,6 +342,7 @@ $ bndry setup
 ```
 
 **Notes:**
+
 - Use `bndry add` for faster target creation if you're happy with defaults
 - Use `bndry setup` when you need full control over naming and configuration
 - Settings chosen during setup can be saved as defaults in your config file
@@ -340,6 +354,7 @@ $ bndry setup
 Connect to a Boundary target by friendly name, or manage SSH connections.
 
 **Usage:**
+
 ```bash
 # Connect to a target by name
 bndry ssh [target-name]
@@ -356,6 +371,7 @@ bndry ssh inspect [target-name]
 Connect to a target using its friendly name instead of the Boundary ID.
 
 **Examples:**
+
 ```bash
 # Connect to a specific target
 bndry ssh webserver-01
@@ -365,6 +381,7 @@ bndry ssh
 ```
 
 **What it does:**
+
 1. Searches for targets matching the given name across all project scopes
 2. If multiple matches found, prompts you to select one
 3. Authorizes an SSH session via Boundary
@@ -372,6 +389,7 @@ bndry ssh
 5. Launches your SSH client with the correct connection details
 
 **Notes:**
+
 - Name matching is case-insensitive
 - Searches exact matches first, then falls back to case-insensitive matching
 - The SSH session is routed through Boundary's worker network
@@ -381,11 +399,13 @@ bndry ssh
 List all targets available for SSH across all your project scopes.
 
 **Usage:**
+
 ```bash
 bndry ssh list
 ```
 
 **Example output:**
+
 ```
 Target              ID                Type    Scope                    Port
 cobalt-ssh          ttcp_uJFU5W1C9P   tcp     OFKM (p_rwg0FqzcCK)      22
@@ -394,6 +414,7 @@ db-server           ttcp_def456       tcp     Production (p_prod01)    5432
 ```
 
 **Notes:**
+
 - Shows targets from all project scopes you have access to
 - Useful for discovering what's available before connecting
 - Targets are sorted alphabetically by name
@@ -403,11 +424,13 @@ db-server           ttcp_def456       tcp     Production (p_prod01)    5432
 Inspect a target's host sources, host catalogs, and backing hosts to diagnose connection issues.
 
 **Usage:**
+
 ```bash
 bndry ssh inspect [target-name]
 ```
 
 **Example:**
+
 ```bash
 $ bndry ssh inspect webserver-01
 
@@ -425,6 +448,7 @@ Host source 1
 ```
 
 **If target is broken:**
+
 ```bash
 $ bndry ssh inspect broken-target
 
@@ -437,6 +461,7 @@ Sources:  none
 ```
 
 **Notes:**
+
 - Use this command when `bndry ssh` fails with "No host sources or address found"
 - Shows you exactly what hosts are wired to the target
 - Helps diagnose missing host sets or empty host sets
@@ -448,15 +473,18 @@ Sources:  none
 List all targets in a selected project scope.
 
 **Usage:**
+
 ```bash
 bndry targets
 ```
 
 **What it does:**
+
 - Prompts you to select a project scope
 - Lists all targets in that scope with their IDs and types
 
 **Example output:**
+
 ```
 Targets in Production (p_prod01):
 
@@ -466,6 +494,7 @@ jumpbox         ttcp_ghi789    tcp
 ```
 
 **Notes:**
+
 - Unlike `bndry ssh list`, this command only shows targets from one scope at a time
 - Useful when managing resources within a specific project
 
@@ -476,11 +505,13 @@ jumpbox         ttcp_ghi789    tcp
 List all scopes recursively from the global scope.
 
 **Usage:**
+
 ```bash
 bndry scopes
 ```
 
 **Example output:**
+
 ```
 global (global)
 └── My Organization (o_abc123)
@@ -490,6 +521,7 @@ global (global)
 ```
 
 **Notes:**
+
 - Shows the full scope hierarchy
 - Displays both scope names and IDs
 - Useful for finding project scope IDs to save in your config
@@ -501,6 +533,7 @@ global (global)
 Manage your `bndry` configuration file.
 
 **Usage:**
+
 ```bash
 # Create a new config file with defaults
 bndry config init
@@ -517,16 +550,19 @@ bndry config path
 Create a new config file with default values.
 
 **Usage:**
+
 ```bash
 bndry config init
 ```
 
 **What it does:**
+
 - Creates `~/.config/bndry/config.yaml` (or the path specified by `BNDRY_CONFIG`)
 - Populates it with built-in default values
 - Prompts for confirmation before overwriting an existing file
 
 **Notes:**
+
 - Safe to run multiple times (won't overwrite without confirmation)
 - Generated file includes comments explaining each setting
 
@@ -535,11 +571,13 @@ bndry config init
 Print the effective configuration after applying defaults, file values, and environment overrides.
 
 **Usage:**
+
 ```bash
 bndry config show
 ```
 
 **Example output:**
+
 ```yaml
 boundary_addr: https://boundary.example.com
 oidc_auth_method_id: amoidc_1234567890
@@ -557,6 +595,7 @@ last_host_catalog_id: hcst_xyz789
 ```
 
 **Notes:**
+
 - Shows the actual config that `bndry` is using
 - Includes values from environment variables if set
 - Useful for verifying your configuration is correct
@@ -566,16 +605,19 @@ last_host_catalog_id: hcst_xyz789
 Print the path to the config file currently in use.
 
 **Usage:**
+
 ```bash
 bndry config path
 ```
 
 **Example output:**
+
 ```
 /Users/you/.config/bndry/config.yaml
 ```
 
 **Notes:**
+
 - Useful for finding the config file to edit manually
 - Respects the `BNDRY_CONFIG` environment variable
 
@@ -588,6 +630,7 @@ bndry config path
 `bndry` looks for its config file in the following order:
 
 1. **Explicit path via environment variable:**
+
    ```bash
    export BNDRY_CONFIG=/path/to/custom/config.yaml
    bndry ssh list
@@ -602,27 +645,28 @@ bndry config path
    - `~/.config/bndry/config.yaml`
 
 **Creating a config file:**
+
 ```bash
 bndry config init
 ```
 
 ### Config Fields Reference
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `boundary_addr` | string | *(none)* | Boundary controller URL (e.g., `https://boundary.example.com`) |
-| `oidc_auth_method_id` | string | *(none)* | OIDC auth method ID (e.g., `amoidc_xxxxx`); optional if server has a default |
-| `auth_token` | string | *(none)* | Boundary auth token (set automatically by `bndry login`) |
-| `default_project_scope_id` | string | *(none)* | Default project scope ID (e.g., `p_xxxxx`); skips scope selection when set |
-| `default_catalog_name` | string | `"Homelab Static Hosts"` | Default host catalog name for `bndry add` |
-| `default_host_set_name` | string | `"linux-servers"` | Default host set name for `bndry add` |
-| `default_role_name` | string | `"linux-ssh-users"` | Default role name when creating role grants |
-| `default_principal_id` | string | *(none)* | Default principal ID to add to new roles (e.g., `mgoidc_xxxxx`) |
-| `default_target_port` | int | `22` | Default SSH port for new targets |
-| `default_create_role` | bool | `true` | Whether to create role grants automatically |
-| `default_connect_after_create` | bool | `true` | Whether to connect immediately after creating a target |
-| `auto_select_default_scope` | bool | `false` | Skip scope selection if `default_project_scope_id` is set |
-| `last_host_catalog_id` | string | *(none)* | Last used host catalog ID (managed automatically) |
+| Field                          | Type   | Default                  | Description                                                                  |
+| ------------------------------ | ------ | ------------------------ | ---------------------------------------------------------------------------- |
+| `boundary_addr`                | string | _(none)_                 | Boundary controller URL (e.g., `https://boundary.example.com`)               |
+| `oidc_auth_method_id`          | string | _(none)_                 | OIDC auth method ID (e.g., `amoidc_xxxxx`); optional if server has a default |
+| `auth_token`                   | string | _(none)_                 | Boundary auth token (set automatically by `bndry login`)                     |
+| `default_project_scope_id`     | string | _(none)_                 | Default project scope ID (e.g., `p_xxxxx`); skips scope selection when set   |
+| `default_catalog_name`         | string | `"Homelab Static Hosts"` | Default host catalog name for `bndry add`                                    |
+| `default_host_set_name`        | string | `"linux-servers"`        | Default host set name for `bndry add`                                        |
+| `default_role_name`            | string | `"linux-ssh-users"`      | Default role name when creating role grants                                  |
+| `default_principal_id`         | string | _(none)_                 | Default principal ID to add to new roles (e.g., `mgoidc_xxxxx`)              |
+| `default_target_port`          | int    | `22`                     | Default SSH port for new targets                                             |
+| `default_create_role`          | bool   | `true`                   | Whether to create role grants automatically                                  |
+| `default_connect_after_create` | bool   | `true`                   | Whether to connect immediately after creating a target                       |
+| `auto_select_default_scope`    | bool   | `false`                  | Skip scope selection if `default_project_scope_id` is set                    |
+| `last_host_catalog_id`         | string | _(none)_                 | Last used host catalog ID (managed automatically)                            |
 
 **Example config:**
 
@@ -647,29 +691,31 @@ auto_select_default_scope: false
 
 All config fields can be overridden with environment variables using the `BNDRY_` prefix:
 
-| Environment Variable | Config Field |
-|---------------------|--------------|
-| `BNDRY_BOUNDARY_ADDR` | `boundary_addr` |
-| `BNDRY_OIDC_AUTH_METHOD_ID` | `oidc_auth_method_id` |
-| `BNDRY_AUTH_TOKEN` | `auth_token` |
-| `BNDRY_DEFAULT_PROJECT_SCOPE_ID` | `default_project_scope_id` |
-| `BNDRY_DEFAULT_CATALOG_NAME` | `default_catalog_name` |
-| `BNDRY_DEFAULT_HOST_SET_NAME` | `default_host_set_name` |
-| `BNDRY_DEFAULT_ROLE_NAME` | `default_role_name` |
-| `BNDRY_DEFAULT_PRINCIPAL_ID` | `default_principal_id` |
-| `BNDRY_DEFAULT_TARGET_PORT` | `default_target_port` |
-| `BNDRY_DEFAULT_CREATE_ROLE` | `default_create_role` |
+| Environment Variable                 | Config Field                   |
+| ------------------------------------ | ------------------------------ |
+| `BNDRY_BOUNDARY_ADDR`                | `boundary_addr`                |
+| `BNDRY_OIDC_AUTH_METHOD_ID`          | `oidc_auth_method_id`          |
+| `BNDRY_AUTH_TOKEN`                   | `auth_token`                   |
+| `BNDRY_DEFAULT_PROJECT_SCOPE_ID`     | `default_project_scope_id`     |
+| `BNDRY_DEFAULT_CATALOG_NAME`         | `default_catalog_name`         |
+| `BNDRY_DEFAULT_HOST_SET_NAME`        | `default_host_set_name`        |
+| `BNDRY_DEFAULT_ROLE_NAME`            | `default_role_name`            |
+| `BNDRY_DEFAULT_PRINCIPAL_ID`         | `default_principal_id`         |
+| `BNDRY_DEFAULT_TARGET_PORT`          | `default_target_port`          |
+| `BNDRY_DEFAULT_CREATE_ROLE`          | `default_create_role`          |
 | `BNDRY_DEFAULT_CONNECT_AFTER_CREATE` | `default_connect_after_create` |
-| `BNDRY_AUTO_SELECT_DEFAULT_SCOPE` | `auto_select_default_scope` |
-| `BNDRY_CONFIG` | *(config file path)* |
+| `BNDRY_AUTO_SELECT_DEFAULT_SCOPE`    | `auto_select_default_scope`    |
+| `BNDRY_CONFIG`                       | _(config file path)_           |
 
 **Example:**
+
 ```bash
 export BNDRY_DEFAULT_TARGET_PORT=2222
 bndry add 10.0.0.5  # Uses port 2222 instead of 22
 ```
 
 **Precedence (highest to lowest):**
+
 1. Environment variables (`BNDRY_*`)
 2. Config file values
 3. Built-in defaults
@@ -705,6 +751,7 @@ bndry setup
 ```
 
 This will:
+
 1. Walk you through creating all resources interactively
 2. Let you customize all names and settings
 3. Optionally save your choices as defaults
@@ -734,6 +781,7 @@ bndry ssh inspect my-server
 ```
 
 This will show:
+
 - Target metadata (ID, scope, port)
 - All attached host sources
 - Host sets and their hosts
@@ -750,6 +798,7 @@ If you see `Sources: none`, the target isn't wired to any hosts or host sets.
 **Cause:** The target exists but isn't connected to any hosts or host sets.
 
 **Solution:**
+
 1. Inspect the target: `bndry ssh inspect <target-name>`
 2. Verify the target has at least one host source
 3. If `Sources: none`, you need to attach a host set to the target using the Boundary web UI or create a new target with `bndry add`
@@ -759,6 +808,7 @@ If you see `Sources: none`, the target isn't wired to any hosts or host sets.
 **Cause:** Your auth token has expired or is invalid.
 
 **Solution:**
+
 ```bash
 bndry login
 ```
@@ -770,6 +820,7 @@ Log in again to get a fresh token.
 **Cause:** Your user doesn't have the required permissions in Boundary.
 
 **Solution:**
+
 - Ensure you have `authorize-session` permission on the target
 - Check role grants in the Boundary web UI
 - If you're creating resources, ensure you have admin permissions in the project scope
@@ -777,11 +828,13 @@ Log in again to get a fresh token.
 ### Can't find config file
 
 **Check where `bndry` is looking:**
+
 ```bash
 bndry config path
 ```
 
 **Create a new config:**
+
 ```bash
 bndry config init
 ```
@@ -789,11 +842,13 @@ bndry config init
 ### Targets not showing up in `bndry ssh list`
 
 **Possible causes:**
+
 1. Targets are in a different scope than you expect
 2. Your user doesn't have permissions to see those targets
 3. Targets don't have the TCP type
 
 **Debug:**
+
 ```bash
 # List all scopes you have access to
 bndry scopes
@@ -807,12 +862,14 @@ bndry targets
 **Expected behavior:** `bndry add` reuses host catalogs and host sets with matching names.
 
 **Each `bndry add` creates:**
+
 - ✅ New host (unique per IP)
 - ✅ New target (unique per name)
 - ♻️ Reuses host catalog (by name)
 - ♻️ Reuses host set (by name)
 
 **To avoid duplicates:**
+
 - Use consistent `--catalog` and `--group` names
 - Or rely on the config defaults (`default_catalog_name`, `default_host_set_name`)
 
@@ -851,6 +908,7 @@ just run        # Build and run
 ```
 
 **Install `just`:**
+
 - macOS: `brew install just`
 - Linux: See [just installation docs](https://github.com/casey/just#installation)
 
@@ -909,6 +967,7 @@ goreleaser release --snapshot --clean
 ```
 
 **Requirements for releases:**
+
 - `GITHUB_TOKEN` environment variable with repo access
 - Push access to `ofkm/homebrew-tap` repository
 
@@ -925,6 +984,7 @@ boundary connect ssh -target-id ttcp_1234567890
 ```
 
 That requires:
+
 - Memorizing or looking up target IDs
 - Managing auth tokens manually
 - Knowing the exact auth method ID
@@ -957,6 +1017,7 @@ Contributions welcome! Please open an issue or PR.
 ## Support
 
 For issues or questions:
+
 - Open an issue on GitHub
 - Check the [Troubleshooting](#troubleshooting) section above
 

@@ -26,7 +26,7 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
-    mod_timestamp: "{{ .CommitTimestamp }}"
+    mod_timestamp: '{{ .CommitTimestamp }}'
 
 archives:
   - id: bndry-archive
@@ -43,7 +43,7 @@ archives:
       - CHANGELOG*
 
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
   algorithm: sha256
 
 changelog:
@@ -52,10 +52,10 @@ changelog:
   abbrev: 7
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "^ci:"
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
   groups:
     - title: Features
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
@@ -72,10 +72,11 @@ brews:
       owner: ofkm
       name: homebrew-tap
       branch: main
+      token: '{{ .Env.TAP_GITHUB_TOKEN }}'
     directory: Formula
-    homepage: "https://github.com/ofkm/bndry"
-    description: "Friendly CLI wrapper for HashiCorp Boundary focused on SSH workflows"
-    license: "MIT"
+    homepage: 'https://github.com/ofkm/bndry'
+    description: 'Friendly CLI wrapper for HashiCorp Boundary focused on SSH workflows'
+    license: 'MIT'
     test: |
       system "#{bin}/bndry --help"
     install: |
@@ -95,4 +96,4 @@ release:
 
 # Metadata
 metadata:
-  mod_timestamp: "{{ .CommitTimestamp }}"
+  mod_timestamp: '{{ .CommitTimestamp }}'
